@@ -1,166 +1,208 @@
 
 import streamlit as st
-import re
+from datetime import date
+import io
 
 st.set_page_config(
     page_title="MedPractice Video Studio",
     page_icon="🎬",
-    layout="wide"
+    layout="wide",
 )
 
 st.title("🎬 MedPractice Video Studio")
-st.caption("Healthcare scripts and faceless video planning")
+st.caption("Create healthcare educational scripts and video storyboards.")
+
+with st.sidebar:
+    st.header("Video settings")
+    platform = st.selectbox(
+        "Platform",
+        ["Instagram Reel", "YouTube Short", "YouTube Video"],
+    )
+    audience = st.selectbox(
+        "Target audience",
+        [
+            "General public",
+            "Parents and caregivers",
+            "Medical students",
+            "Healthcare professionals",
+        ],
+    )
+    language = st.selectbox("Language", ["English", "Hindi"])
+    tone = st.selectbox(
+        "Style",
+        ["Friendly and simple", "Professional", "Storytelling"],
+    )
+    duration = st.select_slider(
+        "Video duration",
+        options=["30 seconds", "45 seconds", "60 seconds", "3 minutes"],
+        value="45 seconds",
+    )
 
 topic = st.text_input(
-    "Healthcare topic",
-    placeholder="Example: Childhood constipation"
+    "What is your healthcare video about?",
+    placeholder="e.g. Understanding childhood constipation",
+)
+key_points = st.text_area(
+    "Important points to include (optional)",
+    placeholder="Add facts, prevention tips, or points reviewed by a clinician.",
+)
+call_to_action = st.text_input(
+    "Closing message",
+    value="Follow for more healthcare education.",
 )
 
-platform = st.selectbox(
-    "Target platform",
-    [
-        "Instagram Reel / YouTube Short (9:16)",
-        "YouTube Video (16:9)"
-    ]
-)
+def build_script(topic, audience, language, tone, duration, key_points, cta):
+    scene_count = {
+        "30 seconds": 4,
+        "45 seconds": 4,
+        "60 seconds": 5,
+        "3 minutes": 7,
+    }[duration]
 
-audience = st.selectbox(
-    "Target audience",
-    [
-        "General public",
-        "Parents and caregivers",
-        "Medical students",
-        "Healthcare professionals"
-    ]
-)
-
-if st.button("Generate Script + Storyboard", type="primary"):
-    if not topic.strip():
-        st.warning("Please enter a healthcare topic.")
+    if language == "Hindi":
+        hook = f"क्या आप {topic} के बारे में जानना चाहते हैं?"
+        intro = f"आइए, {topic} को आसान भाषा में समझते हैं।"
+        reminder = "हर व्यक्ति की स्थिति अलग हो सकती है। सही सलाह के लिए योग्य डॉक्टर से संपर्क करें।"
+        cta_text = cta
+        scene_labels = [
+            "शुरुआत", "मुख्य जानकारी", "क्या ध्यान रखें?",
+            "व्यावहारिक सुझाव", "कब मदद लें?", "सारांश", "समापन"
+        ]
     else:
-        scenes = [
-            {
-                "title": "Scene 1 — Hook",
-                "duration": 5,
-                "narration": (
-                    f"What should you know about {topic}? "
-                    "Let's break down the essentials."
-                ),
-                "visual": (
-                    f"Display the title '{topic}' with clean, "
-                    "professional healthcare-themed graphics."
-                ),
-            },
-            {
-                "title": "Scene 2 — Explanation",
-                "duration": 10,
-                "narration": (
-                    f"First, understand the basics of {topic}. "
-                    "Use clear, simple language to explain the "
-                    "main concept and why it matters."
-                ),
-                "visual": (
-                    "Show a simple labelled illustration or "
-                    "educational diagram relevant to the topic."
-                ),
-            },
-            {
-                "title": "Scene 3 — Key Information",
-                "duration": 10,
-                "narration": (
-                    "Next, focus on the most important facts, "
-                    "practical information, and common questions. "
-                    "Check all clinical statements against "
-                    "reliable medical sources."
-                ),
-                "visual": (
-                    "Present three concise educational points "
-                    "with readable captions and simple icons."
-                ),
-            },
-            {
-                "title": "Scene 4 — Safety and Closing",
-                "duration": 5,
-                "narration": (
-                    "If you have concerns, seek advice from "
-                    "a qualified healthcare professional. "
-                    "Follow for more evidence-informed health education."
-                ),
-                "visual": (
-                    "Show a calm closing screen with a medical "
-                    "review reminder and channel branding."
-                ),
-            },
+        hook = f"What should you know about {topic}?"
+        intro = f"Let's understand {topic} in simple, practical terms."
+        reminder = (
+            "This is general health education, not an individual diagnosis. "
+            "Consult a qualified clinician for personal advice."
+        )
+        cta_text = cta
+        scene_labels = [
+            "Hook", "Introduction", "Key information",
+            "Practical guidance", "When to seek help",
+            "Key takeaway", "Closing"
         ]
 
-        output = [
-            "MEDPRACTICE VIDEO STUDIO",
-            "=" * 35,
-            f"Topic: {topic}",
-            f"Audience: {audience}",
-            f"Platform: {platform}",
-            "Target duration: 30 seconds",
-            "",
-            "FULL NARRATION SCRIPT",
-            "-" * 25,
-        ]
+    points = key_points.strip() or (
+        "Add clinician-reviewed facts about the topic before publishing."
+    )
+    duration_seconds = {
+        "30 seconds": 30,
+        "45 seconds": 45,
+        "60 seconds": 60,
+        "3 minutes": 180,
+    }[duration]
+    seconds_per_scene = duration_seconds // scene_count
 
-        for scene in scenes:
-            output.extend([
-                "",
-                scene["title"],
-                f"Duration: {scene['duration']} seconds",
-                f"NARRATION: {scene['narration']}",
-                f"VISUAL DIRECTION: {scene['visual']}",
-            ])
+    narration = [
+        hook,
+        intro,
+        f"Key information about {topic}: {points}",
+        f"Practical guidance for {audience}: explain only verified, "
+        "topic-appropriate recommendations.",
+        reminder,
+        f"Remember the most important point about {topic}.",
+        cta_text,
+    ]
 
-        output.extend([
+    visuals = [
+        f"Clean opening title about {topic}; engaging, non-alarming healthcare graphics.",
+        "Simple animated introduction with clear typography and uncluttered layout.",
+        "Use a clinician-reviewed infographic to explain the key information.",
+        "Show practical steps using friendly icons and accessible visuals.",
+        "Show a calm, clear prompt to seek qualified medical care when appropriate.",
+        "Summarize the main message using three concise on-screen points.",
+        "Display the channel name and closing message.",
+    ]
+
+    scenes = []
+    for i in range(scene_count):
+        scenes.append({
+            "number": i + 1,
+            "title": scene_labels[i],
+            "seconds": seconds_per_scene,
+            "narration": narration[i],
+            "visual": visuals[i],
+        })
+    return hook, scenes
+
+if st.button("✨ Generate Script & Storyboard", type="primary"):
+    if not topic.strip():
+        st.warning("Please enter a healthcare topic first.")
+    else:
+        hook, scenes = build_script(
+            topic, audience, language, tone, duration, key_points, call_to_action
+        )
+        st.session_state["generated"] = {
+            "topic": topic,
+            "platform": platform,
+            "audience": audience,
+            "language": language,
+            "tone": tone,
+            "duration": duration,
+            "hook": hook,
+            "scenes": scenes,
+        }
+
+if "generated" in st.session_state:
+    result = st.session_state["generated"]
+    st.divider()
+    st.subheader("📝 Your video plan")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Scenes", len(result["scenes"]))
+    col2.metric("Duration", result["duration"])
+    col3.write(f"**Platform**\n\n{result['platform']}")
+
+    st.markdown("### Suggested opening hook")
+    st.info(result["hook"])
+
+    full_text = [
+        "MEDPRACTICE VIDEO STUDIO — SCRIPT & STORYBOARD",
+        f"Topic: {result['topic']}",
+        f"Platform: {result['platform']}",
+        f"Audience: {result['audience']}",
+        f"Language: {result['language']}",
+        f"Style: {result['tone']}",
+        f"Duration: {result['duration']}",
+        "",
+    ]
+
+    for scene in result["scenes"]:
+        st.markdown(
+            f"### Scene {scene['number']}: {scene['title']} "
+            f"({scene['seconds']} sec)"
+        )
+        st.markdown("**Narration**")
+        st.write(scene["narration"])
+        st.markdown("**Visual direction**")
+        st.write(scene["visual"])
+        st.markdown("**On-screen caption**")
+        st.caption(scene["narration"])
+        full_text.extend([
+            f"SCENE {scene['number']}: {scene['title']}",
+            f"Duration: {scene['seconds']} seconds",
+            f"Narration: {scene['narration']}",
+            f"Visual: {scene['visual']}",
+            f"Caption: {scene['narration']}",
             "",
-            "PRE-PUBLICATION REVIEW",
-            "- Verify clinical claims using reliable medical references.",
-            "- Check recommendations, warning signs and safety wording.",
-            "- Review narration timing and caption readability.",
-            "- Check image and audio usage rights.",
-            "- Obtain qualified clinical review before publication.",
-            "",
-            "This is a draft for general education, not individual medical advice."
         ])
 
-        script_text = "\n".join(output)
+    full_text.extend([
+        "MEDICAL REVIEW REQUIRED",
+        "Verify clinical claims against reliable, current sources and have a "
+        "qualified healthcare professional review the content before publication.",
+        "This draft is for general education and is not individualized medical advice.",
+    ])
 
-        st.session_state["script_text"] = script_text
-        st.session_state["scenes"] = scenes
-        st.session_state["topic"] = topic
-
-if "script_text" in st.session_state:
-    st.divider()
-    st.subheader("Your narration script and storyboard")
-
-    for scene in st.session_state["scenes"]:
-        with st.expander(
-            f"{scene['title']} — {scene['duration']} seconds",
-            expanded=True
-        ):
-            st.markdown("**Voiceover**")
-            st.write(scene["narration"])
-            st.markdown("**Visual direction**")
-            st.write(scene["visual"])
-
-    safe_topic = re.sub(
-        r"[^A-Za-z0-9_-]+",
-        "_",
-        st.session_state["topic"]
-    ).strip("_")[:60] or "healthcare_topic"
-
+    script_file = "\n".join(full_text)
     st.download_button(
-        "⬇️ Download Script + Storyboard (.txt)",
-        data=st.session_state["script_text"],
-        file_name=f"{safe_topic}_script.txt",
+        "⬇️ Download script and storyboard (.txt)",
+        data=script_file,
+        file_name="medpractice_script.txt",
         mime="text/plain",
-        type="primary"
     )
 
-    st.info(
-        "This version uses a built-in template, not an AI model. "
-        "Review medical accuracy, safety advice, and timing before publishing."
-    )
+st.divider()
+st.caption(
+    "Version 2 starter: this builds structured drafts from templates. "
+    "It does not yet connect to an AI model, generate voiceover, or render MP4 video."
+)
